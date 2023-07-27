@@ -702,6 +702,11 @@ msgid "Sale Count"
 msgstr ""
 
 #. module: sale_blanket_order
+#: model:ir.model,name:sale_blanket_order.model_sale_order
+msgid "Sale Order"
+msgstr ""
+
+#. module: sale_blanket_order
 #: model_terms:ir.ui.view,arch_db:sale_blanket_order.sale_blanket_order_line_form
 msgid "Sale Order Lines"
 msgstr ""
@@ -719,11 +724,6 @@ msgstr ""
 #. module: sale_blanket_order
 #: model_terms:ir.ui.view,arch_db:sale_blanket_order.view_blanket_order_form
 msgid "Sales Information"
-msgstr ""
-
-#. module: sale_blanket_order
-#: model:ir.model,name:sale_blanket_order.model_sale_order
-msgid "Sales Order"
 msgstr ""
 
 #. module: sale_blanket_order
