@@ -1,0 +1,60 @@
+# Copyright 2018 Tecnativa - Sergio Teruel
+# Copyright 2019 Tecnativa - Pedro M. Baeza
+# License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
+from odoo import api, fields, models
+from odoo.fields import Domain
+
+
+class Elaboration(models.Model):
+    _name = "product.elaboration"
+    _description = "Product elaborations"
+
+    name = fields.Char(required=True, translate=True)
+    code = fields.Char(string="Short Code")
+    product_id = fields.Many2one(
+        comodel_name="product.product",
+        string="Product",
+        ondelete="restrict",
+        domain=[("type", "=", "service"), ("is_elaboration", "=", True)],
+        required=True,
+    )
+    active = fields.Boolean(
+        default=True,
+        help="If unchecked, it will allow you to hide the product "
+        "elaborations without removing it.",
+    )
+    route_ids = fields.Many2many(
+        comodel_name="stock.route",
+        string="Routes",
+        domain=[("sale_selectable", "=", True)],
+        ondelete="restrict",
+    )
+    profile_ids = fields.Many2many(
+        comodel_name="product.elaboration.profile",
+        relation="product_elaboration_profile_rel",
+        column1="elaboration_id",
+        column2="profile_id",
+    )
+
+    _name_uniq = models.Constraint(
+        "UNIQUE(name)",
+        "Name must be unique!",
+    )
+    _code_uniq = models.Constraint(
+        "UNIQUE(code)",
+        "Code must be unique!",
+    )
+
+    @api.model
+    @api.readonly
+    def name_search(self, name="", domain=None, operator="ilike", limit=100):
+        """Give preference to codes on name search, appending
+        the rest of the results after.
+        """
+        domain = Domain(domain or Domain.TRUE)
+        recs = self.browse()
+        if name:
+            recs = self.search(Domain("code", "=ilike", name) & domain, limit=limit)
+        if not recs:
+            recs = self.search(Domain("name", operator, name) & domain, limit=limit)
+        return [(record.id, record.display_name) for record in recs.sudo()]
