@@ -94,5 +94,17 @@ class SaleOrderLine(models.Model):
     def _prepare_invoice_line(self, **optional_values):
         vals = super()._prepare_invoice_line(**optional_values)
         if self.is_elaboration:
-            vals["name"] = f"{self.order_id.name} - {self.name}"
+            if not self.product_id:
+                vals["name"] = f"{self.order_id.name} - {self.name}"
+                return vals
+            # Since 20.0 the line name holds only the description and the invoice
+            # shows the product name above it (the label). The product name stays
+            # the first line of the name, otherwise the invoice label repeats it.
+            product_name, _sep, description = self.label.partition("\n")
+            order_name = self.order_id.name
+            vals["name"] = (
+                f"{product_name}\n{order_name} - {description}"
+                if description
+                else f"{product_name}\n{order_name}"
+            )
         return vals

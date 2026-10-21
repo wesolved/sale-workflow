@@ -177,13 +177,84 @@ class TestSaleElaboration(AccountTestInvoicingCommon):
         inv_line_no_elaboration = invoice.invoice_line_ids.filtered(
             lambda x: x.sale_line_ids == so_line_no_elaboration
         )
+        # The elaboration product has no sales description: the line holds the
+        # product name and the order name, without a dangling " - "
         self.assertEqual(
             inv_line_elaboration.name,
-            f"{self.order.name} - {so_line_elaboration.name}",
+            f"{self.product_elaboration_A.display_name}\n{self.order.name}",
         )
-        self.assertNotEqual(
-            inv_line_no_elaboration.name,
-            f"{self.order.name} - {so_line_no_elaboration.name}",
+        self.assertNotIn(self.order.name, inv_line_no_elaboration.name)
+
+    def test_invoice_elaboration_product_and_description(self):
+        attribute = self.env["product.attribute"].create(
+            {
+                "name": "Size",
+                "create_variant": "always",
+                "value_ids": [
+                    Command.create({"name": "S"}),
+                    Command.create({"name": "M"}),
+                ],
+            }
+        )
+        template = self.env["product.template"].create(
+            {
+                "name": "Shirt",
+                "description_sale": "Cotton",
+                "attribute_line_ids": [
+                    Command.create(
+                        {
+                            "attribute_id": attribute.id,
+                            "value_ids": [Command.set(attribute.value_ids.ids)],
+                        }
+                    )
+                ],
+            }
+        )
+        shirt = template.product_variant_ids.filtered(
+            lambda variant: "M" in variant.display_name
+        )
+        self.product_elaboration_A.description_sale = "Name embroidered"
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": self.partner.id,
+                "order_line": [
+                    Command.create(
+                        {
+                            "product_id": shirt.id,
+                            "product_uom_qty": 2,
+                            "elaboration_ids": [Command.set(self.elaboration_a.ids)],
+                        }
+                    ),
+                    Command.create(
+                        {
+                            "product_id": self.product_elaboration_A.id,
+                            "product_uom_qty": 2,
+                        }
+                    ),
+                ],
+            }
+        )
+        order.action_confirm()
+        invoice = order._create_invoices()
+        product_line = invoice.invoice_line_ids.filtered(
+            lambda line: line.product_id == shirt
+        )
+        elaboration_line = invoice.invoice_line_ids.filtered(
+            lambda line: line.product_id == self.product_elaboration_A
+        )
+        # The product line shows the product with its variant and the description
+        self.assertIn("(M)", shirt.display_name)
+        self.assertEqual(product_line.label, f"{shirt.display_name}\nCotton")
+        # The elaboration line shows the product, the order and the description,
+        # and the invoice label does not repeat the product name
+        self.assertEqual(
+            elaboration_line.name,
+            f"{self.product_elaboration_A.display_name}\n"
+            f"{order.name} - Name embroidered",
+        )
+        self.assertEqual(elaboration_line.label, elaboration_line.name)
+        self.assertEqual(
+            elaboration_line.label.count(self.product_elaboration_A.display_name), 1
         )
 
     def test_sale_elaboration_change_product(self):
